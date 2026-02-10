@@ -13,7 +13,7 @@ go to [github.com/retico-team/retico](https://github.com/retico-team/retico).
 
 ## How to install
 
-For installing retico-core, you need to have `portaudio` installed. See the
+For installing retico-core, you need to have `portaudio` installed (Ubuntu: `$sudo apt-get install portaudio19-dev python3-pyaudio`). See the
 documentation for a detailed description of how to install it. Then, you can install it
 via pip:
 
