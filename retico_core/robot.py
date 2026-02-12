@@ -33,8 +33,8 @@ class RobotStateIU(abstract.IncrementalUnit):
         self.payload = state
 
 
-class IACMotorAction(abstract.IncrementalUnit):
-    """An incremental unit that holds object information (id, name, pose information)
+class IACMotorGoalIU(abstract.IncrementalUnit):
+    """An incremental unit that holds the motor goal produced by IAC
 
     Attributes:
         creator (AbstractModule): The module that created this IU
@@ -46,23 +46,24 @@ class IACMotorAction(abstract.IncrementalUnit):
 
     @staticmethod
     def type():
-        return "IAC Request Camera IU"
+        return "IAC Motor Goal"
 
     def __init__(self, creator=None, iuid=0, previous_iu=None, grounded_in=None, **kwargs):
         super().__init__(creator=creator, iuid=iuid, previous_iu=previous_iu,
                          grounded_in=grounded_in)
-        self.motor_action = None
+        self.payload = None
         self.flow_uuid = None
         self.execution_uuid = None
 
-    def set_motor_action(self, motor_action: [], flow_uuid, execution_uuid):
+    def set_payload(self, motor_goal: [],):
         """
-        Sets the motor action taken to request image
-        :param motor_action: motor action list
-        :param motor_action_uuid: uuid of action
+        Sets the motor goal taken so we can move the robot to the specified goal on the client side
+        """
+        self.payload = motor_goal
 
-        """
-        self.motor_action = motor_action
+    def set_flow_uuid(self, flow_uuid):
         self.flow_uuid = flow_uuid # time (HH:MM:SS + action hash)
+
+    def set_execution_uuid(self, execution_uuid):
         self.execution_uuid = execution_uuid
 
