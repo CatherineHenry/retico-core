@@ -52,8 +52,6 @@ class IACMotorGoalIU(abstract.IncrementalUnit):
         super().__init__(creator=creator, iuid=iuid, previous_iu=previous_iu,
                          grounded_in=grounded_in)
         self.payload = None
-        self.flow_uuid = None
-        self.execution_uuid = None
 
     def set_payload(self, motor_goal: [],):
         """
@@ -61,9 +59,4 @@ class IACMotorGoalIU(abstract.IncrementalUnit):
         """
         self.payload = motor_goal
 
-    def set_flow_uuid(self, flow_uuid):
-        self.flow_uuid = flow_uuid # time (HH:MM:SS + action hash)
-
-    def set_execution_uuid(self, execution_uuid):
-        self.execution_uuid = execution_uuid
 
