@@ -1,3 +1,8 @@
+from opentelemetry import trace
+
+tracer = trace.get_tracer("my.tracer.name")
+
+@tracer.start_as_current_span("get_first_instance_of_target_grounded_in")
 def get_first_instance_of_target_grounded_iu(obj, target_iu_objs:list, layers_deep=0):
     target_attr = 'grounded_in'
     for target_iu_obj in target_iu_objs:
