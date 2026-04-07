@@ -4,8 +4,11 @@ import time
 from collections import deque, namedtuple
 from enum import Enum
 
+from opentelemetry import trace
+
 import retico_core
 from retico_core import abstract
+tracer = trace.get_tracer("my.tracer.name")
 
 RequiredIU = namedtuple('RequiredIU', ['iu_type', 'count'])
 IUtoForward = namedtuple('IUtoForward', ['iu_type', 'creator_name'])
@@ -62,48 +65,49 @@ class AwaitContingentIUsModule(abstract.AbstractModule):
             time.sleep(0.01)
             if len(self.queue) == 0:
                 continue
-            # Iterate over queue and pop the items off, make sure they align with the expected IUs.
-            while not all(iu_queue.full() for iu_queue in self.required_iu_queues.values()):
-                while self.queue:
-                    current_iu = self.queue.popleft()
-                    required_iu_queue = self.required_iu_queues.get(type(current_iu))
-                    if required_iu_queue is None:
-                        print(f"Await Contingent IU received unexpected IU type {type(current_iu)}")
-                    else:
-                        if required_iu_queue.full() is True:
-                            if self.await_type is AwaitType.FIRST:
-                                continue
-                            elif self.await_type is AwaitType.LATEST:
-                                required_iu_queue.get()
-                                required_iu_queue.put(current_iu)
+            with tracer.start_as_current_span("await_contingent") as span:
+                # Iterate over queue and pop the items off, make sure they align with the expected IUs.
+                while not all(iu_queue.full() for iu_queue in self.required_iu_queues.values()):
+                    while self.queue:
+                        current_iu = self.queue.popleft()
+                        required_iu_queue = self.required_iu_queues.get(type(current_iu))
+                        if required_iu_queue is None:
+                            print(f"Await Contingent IU received unexpected IU type {type(current_iu)}")
                         else:
-                            required_iu_queue.put(current_iu)
+                            if required_iu_queue.full() is True:
+                                if self.await_type is AwaitType.FIRST:
+                                    continue
+                                elif self.await_type is AwaitType.LATEST:
+                                    required_iu_queue.get()
+                                    required_iu_queue.put(current_iu)
+                            else:
+                                required_iu_queue.put(current_iu)
 
-                    if all(iu_queue.full() for iu_queue in self.required_iu_queues.values()):
-                        # All the queues are full, done awaiting and ready to continue processing
-                        break # TODO: might not need this break now that it's external
+                        if all(iu_queue.full() for iu_queue in self.required_iu_queues.values()):
+                            # All the queues are full, done awaiting and ready to continue processing
+                            break # TODO: might not need this break now that it's external
 
-            # get iu to forward
-            queue_with_iu_to_forward = self.required_iu_queues[self.type_of_iu_to_forward]
-            for iu in reversed(list(queue_with_iu_to_forward.queue)): # reversed() to get the most recent iu matching the condition
-                if iu.creator.name() is self.creator_name_of_iu_to_forward:
-                    # Pass the IU on, this module will not show in the IU history via grounded_in or creator
-                    output_iu = iu
-                    break
+                # get iu to forward
+                queue_with_iu_to_forward = self.required_iu_queues[self.type_of_iu_to_forward]
+                for iu in reversed(list(queue_with_iu_to_forward.queue)): # reversed() to get the most recent iu matching the condition
+                    if iu.creator.name() is self.creator_name_of_iu_to_forward:
+                        # Pass the IU on, this module will not show in the IU history via grounded_in or creator
+                        output_iu = iu
+                        break
 
-            # clear the queues so we can begin waiting for the next set of required IUs
-            for iu_queue in self.required_iu_queues.values():
-                iu_queue.queue.clear()
+                # clear the queues so we can begin waiting for the next set of required IUs
+                for iu_queue in self.required_iu_queues.values():
+                    iu_queue.queue.clear()
 
-            # With this current implementation the IU subscriber chain is interrupted because we lose the linear 'grounded_in' path from iu to iu
-            # that we would have if we did not process these in parallel and instead subscribed to each module in a chronological fashion.
-            # For example, I await a TextIU from GRED and an ObjectPermanenceIU from Object Permanence, but I only pass the ObjectPermanenceIU on to
-            # any subscribed modules so the TextIU chain is lost.
-            # NOTE: It may be helpful in the future to output a *new* IU (instead of passing an input one forward) that keeps a list of all the IUs
-            # that were awaited + implement a solution using that list for navigating revokes.
-            print(f"All IUs successfully awaited ({self.required_ius})")
-            um = retico_core.UpdateMessage.from_iu(output_iu, retico_core.UpdateType.ADD)
-            self.append(um)
+                # With this current implementation the IU subscriber chain is interrupted because we lose the linear 'grounded_in' path from iu to iu
+                # that we would have if we did not process these in parallel and instead subscribed to each module in a chronological fashion.
+                # For example, I await a TextIU from GRED and an ObjectPermanenceIU from Object Permanence, but I only pass the ObjectPermanenceIU on to
+                # any subscribed modules so the TextIU chain is lost.
+                # NOTE: It may be helpful in the future to output a *new* IU (instead of passing an input one forward) that keeps a list of all the IUs
+                # that were awaited + implement a solution using that list for navigating revokes.
+                print(f"All IUs successfully awaited ({self.required_ius})")
+                um = retico_core.UpdateMessage.from_iu(output_iu, retico_core.UpdateType.ADD)
+                self.append(um)
 
     def prepare_run(self):
         self._extractor_thread_active = True
