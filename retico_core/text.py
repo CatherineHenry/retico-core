@@ -87,6 +87,15 @@ class TextIU(retico_core.IncrementalUnit):
     text = property(get_text, set_text)
 
 
+class GREDTextIU(TextIU):
+    @staticmethod
+    def type():
+        return TextIU.type()
+    def __repr__(self):
+        # show the full payload without truncation
+        return f"{self.type()} - ({self.creator.name()}): {self.get_text()}"
+
+
 class GeneratedTextIU(TextIU):
     """An IU that contains generated text.
 
